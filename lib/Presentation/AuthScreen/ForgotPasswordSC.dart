@@ -1,11 +1,15 @@
-import '../../Core/Bloc/ForgotPassword_bloc.dart';
 import 'package:doctor/Core/Theme/color_app.dart';
+import 'package:doctor/Core/di/dependancy_injection.dart';
 import 'package:doctor/Core/widgets/custom_button.dart';
 import 'package:doctor/Core/widgets/custom_text_form_field_core.dart';
+import 'package:doctor/Presentation/AuthScreen/logic/forgot_password/forgot_password_cubit.dart';
+import 'package:doctor/Presentation/AuthScreen/logic/forgot_password/forgot_password_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+
+enum ForgotPasswordStep { email, otp, newPassword }
 
 class ForgotPasswordSC extends StatefulWidget {
   const ForgotPasswordSC({super.key});
@@ -20,6 +24,10 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
   final _newPasswordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  ForgotPasswordStep _currentStep = ForgotPasswordStep.email;
+  bool _obscureText = true;
+  String _email = '';
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -28,13 +36,33 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
     super.dispose();
   }
 
+  void _handleSendOtp(BuildContext context) {
+    if (_formKey.currentState!.validate()) {
+      _email = _emailCtrl.text.trim();
+      context.read<ForgotPasswordCubit>().emitSendOtpStates(_email);
+    }
+  }
+
+  void _handleVerifyOtp(BuildContext context) {
+    if (_formKey.currentState!.validate()) {
+      context.read<ForgotPasswordCubit>().emitVerifyOtpStates(_email, _otpCtrl.text.trim());
+    }
+  }
+
+  void _handleResetPassword(BuildContext context) {
+    if (_formKey.currentState!.validate()) {
+      context.read<ForgotPasswordCubit>().emitResetPasswordStates(_email, _newPasswordCtrl.text.trim());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ForgotPasswordBloc(),
+      create: (context) => getIt<ForgotPasswordCubit>(),
       child: Scaffold(
         body: Stack(
           children: [
+            // Background
             Positioned.fill(
               child: Image.asset(
                 'assets/images/background/bg.png',
@@ -45,82 +73,109 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
               child: Container(color: Colors.black.withOpacity(0.35)),
             ),
 
-            BlocConsumer<ForgotPasswordBloc, ForgotPasswordState>(
+            BlocListener<ForgotPasswordCubit, ForgotPasswordState>(
               listener: (context, state) {
-                // Password reset done → pop back to login
-                if (state.status == ForgotPasswordStatus.success &&
-                    state.step == ForgotPasswordStep.newPassword &&
-                    state.successMessage != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.successMessage!),
-                      backgroundColor: Colors.green.shade600,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  Future.delayed(const Duration(seconds: 1), () {
-                    Get.back();
-                    Get.back();
-                  });
-                } else if (state.status == ForgotPasswordStatus.failure &&
-                    state.errorMessage != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.errorMessage!),
-                      backgroundColor: Colors.red.shade600,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              builder: (context, state) {
-                return SafeArea(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: 24.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 20.h),
-
-                        // Back
-                        GestureDetector(
-                          onTap: () => Get.back(),
-                          child: Container(
-                            padding: EdgeInsets.all(8.w),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(10.r),
-                            ),
-                            child: Icon(Icons.arrow_back_ios_new,
-                                color: Colors.white, size: 18.sp),
-                          ),
-                        ),
-                        SizedBox(height: 30.h),
-
-                        // Step indicator
-                        _StepIndicator(step: state.step),
-                        SizedBox(height: 28.h),
-
-                        // Step content
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: _buildStepContent(context, state),
-                        ),
-                      ],
-                    ),
-                  ),
+                state.whenOrNull(
+                  sendOtpSuccess: (data) {
+                    setState(() {
+                      _currentStep = ForgotPasswordStep.otp;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('OTP sent to your email successfully'),
+                        backgroundColor: Colors.green.shade600,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  sendOtpError: (message) {
+                    _showErrorSnackBar(context, message);
+                  },
+                  verifyOtpSuccess: (data) {
+                    setState(() {
+                      _currentStep = ForgotPasswordStep.newPassword;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('OTP verified successfully'),
+                        backgroundColor: Colors.green.shade600,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  verifyOtpError: (message) {
+                    _showErrorSnackBar(context, message);
+                  },
+                  resetPasswordSuccess: (data) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Password reset successful'),
+                        backgroundColor: Colors.green.shade600,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (mounted) Get.back();
+                    });
+                  },
+                  resetPasswordError: (message) {
+                    _showErrorSnackBar(context, message);
+                  },
                 );
               },
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 20.h),
+
+                      // Back button
+                      GestureDetector(
+                        onTap: () => Get.back(),
+                        child: Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.white,
+                            size: 18.sp,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 30.h),
+
+                      // Step indicator
+                      _StepIndicator(step: _currentStep),
+                      SizedBox(height: 28.h),
+
+                      // Step content
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: _buildStepContent(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
 
             // Loading overlay
-            BlocBuilder<ForgotPasswordBloc, ForgotPasswordState>(
+            BlocBuilder<ForgotPasswordCubit, ForgotPasswordState>(
               builder: (context, state) {
-                if (state.status == ForgotPasswordStatus.loading) {
+                final isLoading = state is SendOtpLoading || 
+                                  state is VerifyOtpLoading || 
+                                  state is ResetPasswordLoading;
+                if (isLoading) {
                   return Container(
                     color: Colors.black38,
                     child: const Center(
-                        child: CircularProgressIndicator(color: Colors.white)),
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
                   );
                 }
                 return const SizedBox.shrink();
@@ -132,10 +187,18 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
     );
   }
 
-  Widget _buildStepContent(BuildContext context, ForgotPasswordState state) {
-    final bloc = context.read<ForgotPasswordBloc>();
+  void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
-    switch (state.step) {
+  Widget _buildStepContent() {
+    switch (_currentStep) {
       // ── Step 1: Email ────────────────────────────────────────────────────
       case ForgotPasswordStep.email:
         return Form(
@@ -164,13 +227,17 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
                 },
               ),
               SizedBox(height: 30.h),
-              CustomButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    bloc.add(ForgotPasswordSubmitted(_emailCtrl.text));
-                  }
-                },
-                text: 'Send OTP',
+              Builder(
+                builder: (context) {
+                  return BlocBuilder<ForgotPasswordCubit, ForgotPasswordState>(
+                    builder: (context, state) {
+                      return CustomButton(
+                        onPressed: state is SendOtpLoading ? () {} : () => _handleSendOtp(context),
+                        text: state is SendOtpLoading ? 'Sending...' : 'Send OTP',
+                      );
+                    },
+                  );
+                }
               ),
             ],
           ),
@@ -185,7 +252,7 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _title('Enter OTP'),
-              _subtitle('We sent a one-time code to ${state.email}'),
+              _subtitle('We sent a one-time code to $_email'),
               SizedBox(height: 28.h),
               CustomTextFormFieldCore(
                 label: 'OTP Code',
@@ -203,26 +270,36 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
               SizedBox(height: 8.h),
               Align(
                 alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () => bloc.add(ForgotPasswordSubmitted(_emailCtrl.text)),
-                  child: Text(
-                    'Resend OTP',
-                    style: TextStyle(
-                      color: ColorApp.textColor,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    return GestureDetector(
+                      onTap: () {
+                        context.read<ForgotPasswordCubit>().emitSendOtpStates(_email);
+                      },
+                      child: Text(
+                        'Resend OTP',
+                        style: TextStyle(
+                          color: ColorApp.textColor,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
                 ),
               ),
               SizedBox(height: 24.h),
-              CustomButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    bloc.add(ForgotPasswordOtpSubmitted(_otpCtrl.text));
-                  }
-                },
-                text: 'Verify OTP',
+              Builder(
+                builder: (context) {
+                  return BlocBuilder<ForgotPasswordCubit, ForgotPasswordState>(
+                    builder: (context, state) {
+                      return CustomButton(
+                        onPressed: state is VerifyOtpLoading ? () {} : () => _handleVerifyOtp(context),
+                        text: state is VerifyOtpLoading ? 'Verifying...' : 'Verify OTP',
+                      );
+                    },
+                  );
+                }
               ),
             ],
           ),
@@ -241,12 +318,12 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
               SizedBox(height: 28.h),
               _PasswordField(
                 controller: _newPasswordCtrl,
-                obscureText: context
-                    .watch<ForgotPasswordBloc>()
-                    .state
-                    .obscureText,
-                onToggle: () =>
-                    context.read<ForgotPasswordBloc>().add(ForgotPasswordToggleObscure()),
+                obscureText: _obscureText,
+                onToggle: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Password is required';
                   if (v.length < 6) return 'Min 6 characters';
@@ -254,15 +331,17 @@ class _ForgotPasswordSCState extends State<ForgotPasswordSC> {
                 },
               ),
               SizedBox(height: 30.h),
-              CustomButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    context
-                        .read<ForgotPasswordBloc>()
-                        .add(ForgotPasswordResetSubmitted(_newPasswordCtrl.text));
-                  }
-                },
-                text: 'Reset Password',
+              Builder(
+                builder: (context) {
+                  return BlocBuilder<ForgotPasswordCubit, ForgotPasswordState>(
+                    builder: (context, state) {
+                      return CustomButton(
+                        onPressed: state is ResetPasswordLoading ? () {} : () => _handleResetPassword(context),
+                        text: state is ResetPasswordLoading ? 'Resetting...' : 'Reset Password',
+                      );
+                    },
+                  );
+                }
               ),
             ],
           ),
