@@ -25,6 +25,24 @@ class LoginResponse {
 
 @JsonSerializable()
 class LoginUserData {
+  final UserInfo? user;
+  final String? accessToken;
+  final String? refreshToken;
+
+  LoginUserData({
+    this.user,
+    this.accessToken,
+    this.refreshToken,
+  });
+
+  factory LoginUserData.fromJson(Map<String, dynamic> json) =>
+      _$LoginUserDataFromJson(json);
+
+  Map<String, dynamic> toJson() => _$LoginUserDataToJson(this);
+}
+
+@JsonSerializable()
+class UserInfo {
   @JsonKey(name: 'user_code')
   final String? userCode;
   @JsonKey(name: 'first_name')
@@ -33,19 +51,17 @@ class LoginUserData {
   final String lastName;
   final String email;
   final String role;
-  final String? token; // usually login returns a token
 
-  LoginUserData({
+  UserInfo({
     this.userCode,
     required this.firstName,
     required this.lastName,
     required this.email,
     required this.role,
-    this.token,
   });
 
-  factory LoginUserData.fromJson(Map<String, dynamic> json) =>
-      _$LoginUserDataFromJson(json);
+  factory UserInfo.fromJson(Map<String, dynamic> json) =>
+      _$UserInfoFromJson(json);
 
-  Map<String, dynamic> toJson() => _$LoginUserDataToJson(this);
+  Map<String, dynamic> toJson() => _$UserInfoToJson(this);
 }

@@ -26,20 +26,32 @@ Map<String, dynamic> _$LoginResponseToJson(LoginResponse instance) =>
 
 LoginUserData _$LoginUserDataFromJson(Map<String, dynamic> json) =>
     LoginUserData(
-      userCode: json['user_code'] as String?,
-      firstName: json['first_name'] as String,
-      lastName: json['last_name'] as String,
-      email: json['email'] as String,
-      role: json['role'] as String,
-      token: json['token'] as String?,
+      user: json['user'] == null
+          ? null
+          : UserInfo.fromJson(json['user'] as Map<String, dynamic>),
+      accessToken: json['accessToken'] as String?,
+      refreshToken: json['refreshToken'] as String?,
     );
 
 Map<String, dynamic> _$LoginUserDataToJson(LoginUserData instance) =>
     <String, dynamic>{
-      'user_code': instance.userCode,
-      'first_name': instance.firstName,
-      'last_name': instance.lastName,
-      'email': instance.email,
-      'role': instance.role,
-      'token': instance.token,
+      'user': instance.user,
+      'accessToken': instance.accessToken,
+      'refreshToken': instance.refreshToken,
     };
+
+UserInfo _$UserInfoFromJson(Map<String, dynamic> json) => UserInfo(
+  userCode: json['user_code'] as String?,
+  firstName: json['first_name'] as String,
+  lastName: json['last_name'] as String,
+  email: json['email'] as String,
+  role: json['role'] as String,
+);
+
+Map<String, dynamic> _$UserInfoToJson(UserInfo instance) => <String, dynamic>{
+  'user_code': instance.userCode,
+  'first_name': instance.firstName,
+  'last_name': instance.lastName,
+  'email': instance.email,
+  'role': instance.role,
+};

@@ -10,7 +10,7 @@ class CustomHeaderHome extends StatelessWidget {
     return OrientationBuilder(
       builder: (context, orientation) {
         return Container(
-          height: orientation == Orientation.portrait ? 130.h : 110.h,
+          height: orientation == Orientation.portrait ? 90.h : 70.h,
           width: double.infinity,
           padding: EdgeInsets.symmetric(horizontal: 10.w),
           decoration: BoxDecoration(
