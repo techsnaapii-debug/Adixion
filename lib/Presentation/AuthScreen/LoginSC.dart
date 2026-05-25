@@ -22,9 +22,18 @@ class Loginsc extends StatefulWidget {
 }
 
 class _LoginscState extends State<Loginsc> {
+<<<<<<< Updated upstream
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+=======
+   final ThemeController themeController = Get.put(ThemeController());
+   /// Controllers
+   /// gsfdhgdgf
+final _emailController = TextEditingController();
+final _passwordController = TextEditingController();
+final _formKey = GlobalKey<FormState>();
+>>>>>>> Stashed changes
 
   @override
   void dispose() {
